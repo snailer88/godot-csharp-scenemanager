@@ -14,9 +14,4 @@ public class Scene
   /// The scene name, without the extension.
   /// </summary>
   public string? Name { get; set; }
-
-  /// <summary>
-  /// The name of the branch the scene resides on.
-  /// </summary>
-  public string? Branch { get; set; }
 }

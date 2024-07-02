@@ -8,13 +8,14 @@ using System.IO;
 using System.Linq;
 
 /// <summary>
-/// Enables automatic progression of scenes in a linear or branching topography.
+/// Enables automatic progression of scenes in a linear or branching topology.
 /// </summary>
 public class SceneManager
 {
   private const string FILENAME = "scenes.json";
   private const string RESOURCES_PATH = "res://";
-  private int _currentSceneId;
+  private Scene? _currentScene;
+  private Branch? _currentBranch;
   private readonly ManagerConfig _managerConfig;
   private readonly List<SceneResource> _sceneResources = new();
 
@@ -22,67 +23,103 @@ public class SceneManager
   {
     JsonFileHelper.EnsureJsonFile<ManagerConfig>(FILENAME);
     _managerConfig = JsonFileHelper.ReadJsonFile<ManagerConfig>(FILENAME);
-    LoadScenes();
+    LoadSceneResources();
   }
 
   /// <summary>
   /// Loads the next scene.
   /// </summary>
   /// <param name="tree">The current <see cref="SceneTree" />.</param>
-  /// <param name="option">A choice (usually selected by the player) used when switching branches. If not provided, the next scene in the
+  /// <param name="choice">A choice (usually selected by the player) used when switching branches. If not provided, the next scene in the
   /// current branch is loaded.</param>
   /// <exception cref="InvalidOperationException"></exception>
-  public void Next(SceneTree tree, string? option = null)
+  public void Next(SceneTree tree, string? choice = null)
   {
-    var currentScene = _managerConfig.Scenes.FirstOrDefault(s => s.Id == _currentSceneId);
-    Scene? nextScene = null;
-    if (option is null)
+    if (choice is null)
     {
       // Get next scene on current branch
-      var scenesOnBranch = _managerConfig.Scenes
-        .Where(s => s.Branch?.Equals(currentScene?.Branch, StringComparison.OrdinalIgnoreCase) ?? false)
-        .ToList()
-        .OrderBy(s => s.Id);
-      nextScene = scenesOnBranch.FirstOrDefault(x => x.Id > _currentSceneId);
+      if (_currentBranch is null)
+      {
+        throw new InvalidOperationException($"Attempted to move forward in current branch, but no branch is set.");
+      }
+
+      var scenesOnBranch = _currentBranch.Scenes.OrderBy(s => s.Id);
+      var nextScene = scenesOnBranch.FirstOrDefault(x => x.Id > _currentScene?.Id)
+        ?? throw new InvalidOperationException($"Attempted to move forward in current branch, but there is no next scene.");
+      if (string.IsNullOrEmpty(nextScene.Name))
+      {
+        throw new InvalidOperationException($"Attempted to move forward in current branch, but the next scene has no name.");
+      }
+
+      ChangeScene(tree, nextScene.Name);
     }
     else
     {
-      // Get next scene on new branch
-      var selectedChoice = _managerConfig.Choices.FirstOrDefault(c => c.SourceScene == _currentSceneId &&
-        (c.Option?.Equals(option, StringComparison.OrdinalIgnoreCase) ?? false))
-        ?? throw new InvalidOperationException($"Attempted to change branches, but no choice with source {_currentSceneId} and option {option} was found");
+      // Get new branch
+      var targetBranch = _managerConfig.Branches
+        .Where(b => b.Source == _currentScene?.Id && (b.Choice?.Equals(choice, StringComparison.OrdinalIgnoreCase) ?? false))
+        .FirstOrDefault()
+        ?? throw new InvalidOperationException($"Attempted to change branches, but no branch with choice '{choice}' and source scene {_currentScene?.Id} was found.");
+      if (string.IsNullOrEmpty(targetBranch.Name))
+      {
+        throw new InvalidOperationException($"Attempted to change branches, but the target branch has no name.");
+      }
 
-      nextScene = _managerConfig.Scenes.FirstOrDefault(x => x.Id == selectedChoice.TargetScene);
-    }
-
-    if (nextScene is not null && !string.IsNullOrEmpty(nextScene.Name))
-    {
-      ChangeScene(tree, nextScene.Name);
+      ChangeBranch(tree, targetBranch.Name);
     }
   }
 
   /// <summary>
   /// Loads a scene with the provided <paramref name="name"/>. As opposed to <see cref="Next"/>, there are no constraints to which scenes
-  /// can be loaded, meaning you may jump branches or move backward in the scene topography.
+  /// can be loaded, meaning you may jump branches or move backward in the scene topology.
   /// </summary>
   /// <param name="tree">The current <see cref="SceneTree" />.</param>
   /// <param name="name">The name of the scene to load (without the extension).</param>
   /// <exception cref="InvalidOperationException"></exception>
   public void ChangeScene(SceneTree tree, string name)
   {
-    var resource = _sceneResources.FirstOrDefault(s => s.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) ?? false)
+    var newSceneResource = _sceneResources.FirstOrDefault(s => s.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) ?? false)
       ?? throw new InvalidOperationException($"No scene with name '{name}' found.");
 
-    var newScene = _managerConfig.Scenes.FirstOrDefault(s => s.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) ?? false);
-    if (newScene is not null)
+    foreach (var branch in _managerConfig.Branches)
     {
-      _currentSceneId = newScene.Id;
+      var newScene = branch.Scenes.FirstOrDefault(s => s.Name?.Equals(name, StringComparison.OrdinalIgnoreCase) ?? false);
+      if (newScene is null)
+      {
+        continue;
+      }
+
+      _currentScene = newScene;
+      _currentBranch = branch;
+      tree.ChangeSceneToFile(newSceneResource.Path);
+
+      return;
     }
 
-    tree.ChangeSceneToFile(resource.Path);
+    // Scene is not in JSON file, but we can still switch to an arbitrary scene (like a main menu)
+    tree.ChangeSceneToFile(newSceneResource.Path);
   }
 
-  private void LoadScenes()
+  /// <summary>
+  /// Loads the first scene in the specified <paramref name="branchName"/>.
+  /// </summary>
+  /// <param name="tree">The current <see cref="SceneTree" />.</param>
+  /// <param name="branchName">The name of the branch to switch to.</param>
+  /// <exception cref="InvalidOperationException"></exception>
+  public void ChangeBranch(SceneTree tree, string branchName)
+  {
+    var newBranch = _managerConfig.Branches.FirstOrDefault(s => s.Name?.Equals(branchName, StringComparison.OrdinalIgnoreCase) ?? false)
+      ?? throw new InvalidOperationException($"No branch with name '{branchName}' found.");
+    var newScene = newBranch.Scenes.OrderBy(s => s.Id).First();
+    if (newScene is null || string.IsNullOrEmpty(newScene.Name))
+    {
+      throw new InvalidOperationException($"The branch '{branchName}' contains no scenes, or the first scene has no name.");
+    }
+
+    ChangeScene(tree, newScene.Name);
+  }
+
+  private void LoadSceneResources()
   {
     var scenes = GetSceneFiles(RESOURCES_PATH);
     foreach (var scene in scenes)

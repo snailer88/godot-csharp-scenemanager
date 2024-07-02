@@ -9,12 +9,7 @@ using System.Linq;
 public class ManagerConfig
 {
   /// <summary>
-  /// A list of game scenes.
+  /// A list of scene branches.
   /// </summary>
-  public IEnumerable<Scene> Scenes { get; set; } = Enumerable.Empty<Scene>();
-
-  /// <summary>
-  /// The scene transitions based on user choices.
-  /// </summary>
-  public IEnumerable<Choice> Choices { get; set; } = Enumerable.Empty<Choice>();
+  public IEnumerable<Branch> Branches { get; set; } = Enumerable.Empty<Branch>();
 }

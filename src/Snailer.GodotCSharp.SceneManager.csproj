@@ -6,9 +6,9 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Snailer.GodotCSharp.SceneManager</RootNamespace>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Snailer</Authors>
-    <Description>Enables automatic progression of scenes in a linear or branching topography in Godot C# projects.</Description>
+    <Description>Enables automatic progression of scenes in a linear or branching topology in Godot C# projects.</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
