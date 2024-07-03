@@ -2,7 +2,7 @@
 
 The `scenes.json` file contains all scenes managed by the `SceneManager`. The format is easy to read, even for non-technical users, and because the scene topology is managed in a single file, it makes versioning/collaboration easy!
 
-You can use the JSON file to a simple, linear game, or a game with complex "branches" e.g. a story-driven game where the player's choices affect the ending. The JSON file contains a list of branches, where each branch contains 1 or more scenes.
+You can use the JSON file to manage a simple, linear game, or a complex game with "branches" e.g. a story-driven game where the player's choices affect the ending. The JSON file contains a list of branches, where each branch contains 1 or more scenes.
 
 ## Branches
 
