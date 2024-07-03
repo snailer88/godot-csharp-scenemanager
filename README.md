@@ -67,3 +67,7 @@ Check out the documentation for detailed usage scenarios and examples!
 
 - [Creating the scenes.json file](/docs/CreatingTheJsonFile.md)
 - [Using the manager](/docs/UsingTheManager.md)
+
+## Other projects
+
+Wanna easily manage game settings? Check out my [SettingsManager](https://github.com/snailer88/godot-csharp-settingsmanager)!
